@@ -4,30 +4,64 @@ require 'vendor/autoload.php';
 
 $client = new \Github\Client();
 
-$username = 'sdfdsf324a';
+$username = 'organizationname';
 $path = 'README.md';
-$repo = 'test';
+$repo = 'testrepo';
+$token = '****';
+$newBranchName = 'new-branch1';
+$pullRequestBody = 'Pull request body';
+$pullRequestTitle = 'Pull request title';
+$possibleBaseBranches = array('develop', 'dev', 'master');
 
-$client->authenticate('9881cd634457760589d7c5af3cf59c27d725b99f', null, \Github\Client::AUTH_HTTP_TOKEN);
+$client->authenticate($token, null, \Github\Client::AUTH_HTTP_TOKEN);
 
-$oldFileContentBase64 = $client->api('repo')->contents()->show($username, $repo, 'README.md');
+/** @var \Github\Api\Repo $repoApi */
+$repoApi = $client->api('repo');
 
+$oldFileContentBase64 = $repoApi->contents()->show($username, $repo, $path);
 $oldFileContent = base64_decode($oldFileContentBase64['content']);
 
-$branches = $client->api('gitData')->references()->branches($username, $repo);
+/** @var \Github\Api\GitData $gitDataApi */
+$gitDataApi = $client->api('gitData');
 
-$branchToForkFrom = 'master';
-$branchShaToForkFrom = $branches[0]['object']['sha'];
+$branches = $gitDataApi->references()->branches($username, $repo);
 
+function chooseBaseBranch(array $branches, $possibleBaseBranches, &$chosenBranch) {
+    $branchPrefixInRef = 'refs/heads/';
 
-$referenceData = ['ref' => 'refs/heads/new-branch', 'sha' => $branchShaToForkFrom];
-//$reference = $client->api('gitData')->references()->create($username, $repo, $referenceData);
-$result = $client->api('repo')->contents()->update(
+    foreach ($possibleBaseBranches as $possibleBaseBranch) {
+        foreach ($branches as $branch) {
+            if ($branch['ref'] === $branchPrefixInRef . $possibleBaseBranch) {
+                $chosenBranch = $possibleBaseBranch;
+                return $branch['object']['sha'];
+            }
+        }
+    }
+
+    return null;
+}
+
+$branchShaToForkFrom = chooseBaseBranch($branches, $possibleBaseBranches,$chosenBranch);
+
+$referenceData = ['ref' => 'refs/heads/' . $newBranchName, 'sha' => $branchShaToForkFrom];
+$reference = $gitDataApi->references()->create($username, $repo, $referenceData);
+
+$result = $repoApi->contents()->update(
     $username,
     $repo,
     $path,
     'new content2',
     'commit',
     $oldFileContentBase64['sha'],
-    'new-branch'
+    $newBranchName
 );
+
+/** @var \Github\Api\PullRequest $pullRequestApi */
+$pullRequestApi = $client->api('pull_request');
+
+$pullRequest = $pullRequestApi->create($username, $repo, array(
+    'base'  => $chosenBranch,
+    'head'  => $newBranchName,
+    'title' => $pullRequestTitle,
+    'body'  => $pullRequestBody,
+));
