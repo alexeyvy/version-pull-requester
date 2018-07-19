@@ -12,6 +12,9 @@ $newBranchName = 'new-branch1';
 $pullRequestBody = 'Pull request body';
 $pullRequestTitle = 'Pull request title';
 $possibleBaseBranches = array('develop', 'dev', 'master');
+$dependency = 'knplabs/github-api';
+$onlyIfOldVersionEqualsTo = '^2.8';
+$newVersion = '^100500.8';
 
 $client->authenticate($token, null, \Github\Client::AUTH_HTTP_TOKEN);
 
@@ -20,6 +23,12 @@ $repoApi = $client->api('repo');
 
 $oldFileContentBase64 = $repoApi->contents()->show($username, $repo, $path);
 $oldFileContent = base64_decode($oldFileContentBase64['content']);
+
+$oldFileContent = json_decode($oldFileContent, true);
+// @todo handle NULL
+
+$composerJsonReplacer = new \VersionPullRequester\ComposerJsonReplacer();
+$newFileContent = $composerJsonReplacer->replaceVersionOfDependency($oldFileContent, $dependency, $newVersion, $onlyIfOldVersionEqualsTo);
 
 /** @var \Github\Api\GitData $gitDataApi */
 $gitDataApi = $client->api('gitData');
@@ -50,7 +59,7 @@ $result = $repoApi->contents()->update(
     $username,
     $repo,
     $path,
-    'new content2',
+    $newFileContent,
     'commit',
     $oldFileContentBase64['sha'],
     $newBranchName

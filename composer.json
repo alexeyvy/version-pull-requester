@@ -2,10 +2,11 @@
   "name": "version-pull-requester",
   "autoload": {
     "psr-4": {
-      "Validator\\": "src/VersionPullRequester"
+      "VersionPullRequester\\": "src/VersionPullRequester"
     }
   },
   "require": {
+    "php": "^7.2",
     "knplabs/github-api": "^2.8",
     "php-http/guzzle6-adapter": "^1.1"
   },
