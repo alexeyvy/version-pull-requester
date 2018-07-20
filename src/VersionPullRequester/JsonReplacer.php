@@ -2,6 +2,10 @@
 
 namespace VersionPullRequester;
 
+/**
+ * This implementation turned out not to fit our needs because converting from
+ * and to json affects composer.json format (indentations etc)
+ */
 class JsonReplacer implements Replacer
 {
     public function replaceVersionOfDependency(string $oldContent, string $dependency,
