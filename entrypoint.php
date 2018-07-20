@@ -48,12 +48,8 @@ foreach ($repos as $repoParams) {
     $oldFileContentBase64 = $repoApi->contents()->show($organization, $repo, $path);
     $oldFileContent = base64_decode($oldFileContentBase64['content']);
 
-    $oldFileContent = json_decode($oldFileContent, true);
-    // @todo handle NULL
-
-    $composerJsonReplacer = new \VersionPullRequester\ComposerJsonReplacer();
+    $composerJsonReplacer = new \VersionPullRequester\RegexReplacer();
     $newFileContent = $composerJsonReplacer->replaceVersionOfDependency($oldFileContent, $dependency, $newVersion, $onlyIfOldVersionEqualsTo);
-    $newFileContent = json_encode($newFileContent);
 
     /** @var \Github\Api\GitData $gitDataApi */
     $gitDataApi = $client->api('gitData');

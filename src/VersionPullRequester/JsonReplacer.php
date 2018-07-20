@@ -2,17 +2,20 @@
 
 namespace VersionPullRequester;
 
-class ComposerJsonReplacer
+class JsonReplacer implements Replacer
 {
-    public function replaceVersionOfDependency(array $oldContent, string $dependency,
-                                               string $dependencyNewVersion, ?string $onlyIfOldVersionEqualsTo = null): array
+    public function replaceVersionOfDependency(string $oldContent, string $dependency,
+                                               string $dependencyNewVersion, ?string $onlyIfOldVersionEqualsTo = null): string
     {
+        $oldContent = json_decode($oldContent, true);
+        // @todo handle NULL
+
         $newContent = $oldContent;
 
         $newContent['require'] = $this->replaceThroughDependencies($oldContent['require'], $dependency, $dependencyNewVersion, $onlyIfOldVersionEqualsTo);
         $newContent['require-dev'] = $this->replaceThroughDependencies($oldContent['require-dev'], $dependency, $dependencyNewVersion, $onlyIfOldVersionEqualsTo);
 
-        return $newContent;
+        return json_encode($newContent, JSON_PRETTY_PRINT);
     }
 
     private function replaceThroughDependencies(array $dependencies, string $dependency,
