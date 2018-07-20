@@ -96,6 +96,17 @@ final class RegexReplacerTest extends TestCase
         $this->assertEquals($output, '"knplabs/github-api": "!^*+|)"');
     }
 
+    public function testConsideringPossibleWhitespaceAfterDependencyName()
+    {
+        $replacer = new RegexReplacer();
+        $input = '"knplabs/github-api" : "^1"';
+
+        $output = $replacer->replaceVersionOfDependency($input, 'knplabs/github-api',
+            '^2');
+
+        $this->assertEquals($output, '"knplabs/github-api" : "^2"');
+    }
+
     // for now JSON Replacer can only change the version only in a one place
 /*    public function testReplacingEveryMatchEvenWhenDifferentVersions()
     {

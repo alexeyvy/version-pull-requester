@@ -7,7 +7,7 @@ class RegexReplacer implements Replacer
     public function replaceVersionOfDependency(string $oldContent, string $dependency,
                                                string $dependencyNewVersion, ?string $onlyIfOldVersionEqualsTo = null): string
     {
-        $pattern = sprintf('#"%s":(\s|\t)"(?<version>[^"]+)"#', preg_quote($dependency));
+        $pattern = sprintf('#"%s"(\s|\t)*:(\s|\t)*"(?<version>[^"]+)"#', preg_quote($dependency));
         preg_match($pattern, $oldContent, $matches, PREG_OFFSET_CAPTURE);
 
         if (!array_key_exists('version', $matches)) {
