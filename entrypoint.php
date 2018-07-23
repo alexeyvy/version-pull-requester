@@ -4,18 +4,17 @@ require 'vendor/autoload.php';
 
 $client = new \Github\Client();
 
-$username = 'username';
+$username = 'alexeyvy';
 $organization = 'organization';
 $path = 'composer.json';
-$repo = 'testrepo';
 $token = '****';
-$newBranchName = 'new-branch100501';
-$pullRequestBody = 'Pull request body';
-$pullRequestTitle = 'Pull request title';
-$possibleBaseBranches = array('develop', 'dev', 'master');
-$dependency = 'knplabs/github-api';
-$onlyIfOldVersionEqualsTo = '^2.8';
-$newVersion = '^100500.8';
+$newBranchName = 'fix-version-of-extension-installer';
+$pullRequestBody = 'In order to raise the minimum-stability of a tao install, we need to be able to install the extension installer in a released version. To this end all extensions need to move from "oat-sa/oatbox-extension-installer:dev-master" to "oat-sa/oatbox-extension-installer:~1.1||dev-master". Details: https://oat-sa.atlassian.net/browse/TAO-6542';
+$pullRequestTitle = 'Fix version of extension installer';
+$possibleBaseBranches = array('develop', 'dev', 'devel', 'master');
+$dependency = 'oat-sa/oatbox-extension-installer';
+$onlyIfOldVersionEqualsTo = 'dev-master';
+$newVersion = '~1.1||dev-master';
 
 function chooseBaseBranch(array $branches, array $possibleBaseBranches, &$chosenBranch): ?string
 {
@@ -38,16 +37,31 @@ $client->authenticate($token, null, \Github\Client::AUTH_HTTP_TOKEN);
 /** @var \Github\Api\User $userApi */
 $userApi = $client->api('user');
 $repos = $userApi->repositories($organization);
-
+$i = 0;
 foreach ($repos as $repoParams) {
     $repo = $repoParams['name'];
-    printf('Scanning repo %s', $repo);
-
+    printf('Scanning repo %s (%d)' . PHP_EOL, $repo, ++$i);
     // pick a branch that will be used as a base one
 
     /** @var \Github\Api\GitData $gitDataApi */
     $gitDataApi = $client->api('gitData');
-    $branches = $gitDataApi->references()->branches($organization, $repo);
+    try {
+        $branches = $gitDataApi->references()->branches($organization, $repo);
+    } catch (\Github\Exception\RuntimeException $e) {
+        fwrite(STDERR, sprintf('Repo %s is empty' . PHP_EOL, $repo));
+        continue;
+    }
+
+    // check our branch not created yet
+
+    foreach ($branches as $branch) {
+        $branchPrefixInRef = 'refs/heads/';
+        if ($branch['ref'] === $branchPrefixInRef . $newBranchName) {
+            fwrite(STDERR, sprintf('Repo %s was already processed' . PHP_EOL, $repo));
+            continue(2);
+        }
+    }
+
     $branchShaToForkFrom = chooseBaseBranch($branches, $possibleBaseBranches, $chosenBranch);
     if ($branchShaToForkFrom === null) {
         fwrite(STDERR, sprintf('Repo %s does not have branch to be base' . PHP_EOL, $repo));
@@ -72,8 +86,12 @@ foreach ($repos as $repoParams) {
     $composerJsonReplacer = new \VersionPullRequester\RegexReplacer();
     $newFileContent = $composerJsonReplacer->replaceVersionOfDependency($oldFileContent, $dependency, $newVersion, $onlyIfOldVersionEqualsTo);
 
-    // fork branch
+    if ($newFileContent === $oldFileContent) {
+        printf('No replace for repo %s' . PHP_EOL, $repo);
+        continue;
+    }
 
+    // fork branch
     $referenceData = ['ref' => 'refs/heads/' . $newBranchName, 'sha' => $branchShaToForkFrom];
     try {
         $reference = $gitDataApi->references()->create($organization, $repo, $referenceData);
@@ -90,7 +108,7 @@ foreach ($repos as $repoParams) {
             $repo,
             $path,
             $newFileContent,
-            'commit',
+            'Fix version of extension installer',
             $oldFileContentBase64['sha'],
             $newBranchName
         );
@@ -117,4 +135,6 @@ foreach ($repos as $repoParams) {
         // @todo think about deleting a branch that has just been created in order to make all the process transactional
         continue;
     }
+
+    printf('Pull request has successfully been created for repo %s' . PHP_EOL, $repo);
 }
